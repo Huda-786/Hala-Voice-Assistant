@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+
+# Env
+.env
+
+# Models
+model/
+hf-cache/
+
+# Chroma (optional)
+# Keep if small, ignore if large
+# chroma_icp_db/
+
+# OS
+.DS_Store
+Thumbs.db

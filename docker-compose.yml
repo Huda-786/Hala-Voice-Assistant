@@ -1,0 +1,45 @@
+services:
+  frontend:
+    build: ./frontend
+    container_name: hala-frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  llama-server:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: hala-llama
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/models
+    command: >
+      -m /models/icp-assistant-qwen-q4.gguf
+      --host 0.0.0.0
+      --port 8000
+      --ctx-size 4096
+      --parallel 4
+    restart: unless-stopped
+
+  agent:
+    build: ./agent
+    # container_name: hala-agent
+    env_file:
+      - .env
+    volumes:
+      - ./hf-cache:/root/.cache/huggingface
+    depends_on:
+      - llama-server
+    command: python v6.py dev
+    restart: unless-stopped
+
+  build-chroma:
+    build: ./agent
+    env_file:
+      - .env
+    volumes:
+      - ./agent/chroma_icp_db:/app/chroma_icp_db
+      - ./hf-cache:/root/.cache/huggingface
+    command: python emb_chunk.py

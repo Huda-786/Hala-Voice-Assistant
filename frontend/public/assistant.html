@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <title>Hala ICP Assistant</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+<main class="app">
+
+  <!-- Header -->
+  <header class="header">
+    <img src="assets/icp-logo.png" class="logo-left" />
+    <img src="assets/ajman-logo.png" class="logo-center" />
+    <img src="assets/uae-emblem.png" class="logo-right" />
+  </header>
+
+  <!-- Back Button -->
+  <div class="back-button" onclick="goBack()">←</div>
+
+  <!-- Assistant Screen -->
+  <section class="assistant-screen">
+
+    <!-- Avatar -->
+    <div class="avatar-area">
+      <video id="avatarVideo" autoplay playsinline></video>
+    </div>
+
+    <div id="subtitleBox" class="subtitle-box"></div>
+
+    <!-- Controls -->
+    <div class="assistant-controls">
+      <button class="mic-button">🎤 Speak</button>
+      <button class="end-button">End Session</button>
+    </div>
+
+  </section>
+
+</main>
+
+<!-- Bottom Strip -->
+<div class="bottom-strip">
+  <img src="assets/strip.png" />
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+<script src="assistant.js"></script>
+
+</body>
+</html>
