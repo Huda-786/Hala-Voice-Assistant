@@ -11,9 +11,10 @@ langchain-chroma
 langchain-community
 langchain-text-splitters
 chromadb
-transformers
-torch
+transformers==4.46.3
 scipy
-numpy
+numpy<2
+einops
+sentencepiece
 sentence-transformers
 langchain-huggingface

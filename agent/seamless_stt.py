@@ -49,7 +49,7 @@ class SeamlessSTT(stt.STT):
     def __init__(self, processor, model, device="cpu", selected_lang = "en"):
         super().__init__(
             capabilities=stt.STTCapabilities(
-                streaming=True,
+                streaming=False,
                 interim_results=False,
             )
         )

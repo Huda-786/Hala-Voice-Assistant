@@ -1,23 +1,20 @@
 # Imports
 from dotenv import load_dotenv
-from livekit.agents import (
-    Agent,
-    AgentSession,
-    JobContext,
-    WorkerOptions,
-    cli,
-    TurnHandlingOptions,
-)
-from edge_TTS import EdgeTTSPlugin
-from hala import hala_reply
-from livekit.agents.llm import ChatMessage
-import asyncio
-from seamless_stt import SeamlessSTT
-from transformers import AutoProcessor, SeamlessM4TModel
-import torch
-import json
+from livekit.agents import (Agent, AgentSession, JobContext, WorkerOptions, cli, TurnHandlingOptions)
 from livekit.plugins import openai, silero, lemonslice
-import os
+from livekit.agents.llm import ChatMessage
+from livekit.agents.stt import StreamAdapter
+from edge_TTS import EdgeTTSPlugin
+from transformers import AutoProcessor, SeamlessM4TModel
+from seamless_stt import SeamlessSTT
+from hala import hala_reply
+from prompts_scripts import get_rag_template, get_script, get_system_prompt
+import asyncio
+from extraction import extract_user_state
+from langchain_openai import ChatOpenAI
+from session_state import SessionState
+from intent_extractor import update_session_from_turn
+import json
 load_dotenv()
 
 # ==============================
@@ -29,7 +26,7 @@ AVATAR_MAP = {
     "africa": "https://raw.githubusercontent.com/Huda-786/Avatars/e6b3de740cab3789333d973b31979eb462e934c2/AA.png",
     "europe": "https://raw.githubusercontent.com/Huda-786/Avatars/e6b3de740cab3789333d973b31979eb462e934c2/SP.png",
     "middle_east": "https://raw.githubusercontent.com/Huda-786/Avatars/e6b3de740cab3789333d973b31979eb462e934c2/UAE.png",
-    "usa": "https://raw.githubusercontent.com/Huda-786/Avatars/e6b3de740cab3789333d973b31979eb462e934c2/USA.png",
+    "usa": "https://raw.githubusercontent.com/Huda-786/Avatars/7d901ae1544a00b6ff0a299ab3d6813e79671b97/USA2.jpeg",
     "east_asia": "https://raw.githubusercontent.com/Huda-786/Avatars/3da684f0d2fc88df77ae84afaac4efa170fa3d5a/EA.png"
 }
 
@@ -41,7 +38,7 @@ def prewarm(proc):
     processor = AutoProcessor.from_pretrained(model_id)
     model = SeamlessM4TModel.from_pretrained(model_id)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cpu"
     model.to(device)
     model.eval()
 
@@ -51,70 +48,35 @@ def prewarm(proc):
     print(f"SeamlessM4T ready on {device}.")
 
 # ==============================
-# PROMPTS
-# ==============================
-
-SYSTEM_PROMPT = """
-You are Hala, a warm and friendly AI assistant stationed on a tablet inside the Ajman Happiness Center in Al Jurf, run by ICP.
-The working hour of the center is from 7 AM till 4:30 PM from Monday till Friday.
-The visitor is physically standing inside the Ajman Happiness Center, Al Jurf.
-If asked about location, remind them they are already here.
-
-PERSONALITY:
-- Welcoming, calm, and reassuring.
-- Speak naturally, like a kind staff member.
-- Never sound robotic.
-- Keep responses to 2 short sentences maximum.
-- Do not use bullet points unless the visitor explicitly asks for a list.
-- Use phrases like "Here at this center..." or "You can do that right here..."
-- Ask only ONE follow-up question per turn.
-
-SCOPE:
-You only help with ICP-related services and center guidance.
-If the request is unrelated, politely say you can only help with ICP services at this center.
-You cannot answer anything outside the ICP services.
-
-IMPORTANT: DO NOT ASSUME ANYTHING ABOUT THE USER UNLESS THE USER SPECIFICALLY STATES WHO THEY ARE.
-RULES:
-- Keep answers very short — 1-2 sentences.
-- Only ask ONE question at a time.
-- Only tell them what's in the provided Information below. Never guess or invent.
-- Ask their category (UAE national, resident, GCC national) only when needed for a service.
-- If the visitor is a GCC national and subcategory is UNKNOWN, ask whether they are employee, investor, student, property owner, scholar, or family connection.
-- Even when reference material is available, always ask clarifying questions if the visitor's situation is ambiguous.
-- Never assume the visitor's category, age, or specific situation unless they have explicitly stated it.
-"""
-
-RAG_INJECTION_TEMPLATE = """
-
----
-RELEVANT ICP INFORMATION (use only what applies to this visitor's confirmed situation — do not assume their category or details):
-{rag_context}
-
----
-
-Visitor message: {user_text}"""
-
-RETRIEVAL_SKIP_PHRASES = {
-    "okay", "ok", "yes", "no", "thank you", "thanks", "sure",
-    "alright", "got it", "great", "fine", "yep", "nope", "bye",
-    "goodbye", "hello", "hi", "hey", "good morning", "good afternoon"
-}
-
-# ==============================
 # ASSISTANT
 # ==============================
 
 class Assistant(Agent):
-    def __init__(self, stt_model, selected_lang="en"):
-        self.whisper_stt = stt_model
+    def __init__(self, stt_model, selected_lang="en", mode = "reception"):
+
+        self.seam_stt = stt_model  
         self.current_lang = selected_lang
+        self.mode = mode
+        self.rag_session = SessionState()
+        self.intent_llm = ChatOpenAI(
+            model="icp-assistant-qwen-2",
+            base_url="http://127.0.0.1:1234/v1",
+            api_key="lm-studio",
+            temperature=0,
+        )
 
-        super().__init__(instructions=SYSTEM_PROMPT)
+        super().__init__(instructions=get_system_prompt())
 
-    async def on_enter(self):
+    async def on_enter(self):  #Initial Greetings!
+
+        if self.mode == "counter":
+            welcome_script = get_script()
+        else:
+            welcome_script = "Welcome to the Ajman Happiness center. How can I help you today?"
+
         await self.session.say(
-            "Welcome to the Ajman Happiness Centre. How can I help you today?"
+             welcome_script,
+             allow_interruptions = False,
         )
 
     async def on_user_turn_completed(self, turn_ctx, new_message):
@@ -123,54 +85,70 @@ class Assistant(Agent):
 
     async def llm_node(self, chat_ctx, tools, model_settings):
 
-        # ── 1. Get the user's original message ──────────────────────────────
         user_text = ""
+
         if chat_ctx.items and chat_ctx.items[-1].role == "user":
             user_text = chat_ctx.items[-1].text_content or ""
 
-        # ── 2. Use English translation for RAG retrieval ─────────────────────
-        user_text_english = self.whisper_stt.last_text_english or user_text
+        user_text_english = self.seam_stt.last_text_english or user_text
 
-        # ── 3. Decide whether to run RAG ─────────────────────────────────────
-        # Skip retrieval for trivial/short messages to avoid bad chunk injection
-        should_retrieve = (
-            len(user_text_english.split()) >= 3
-            and user_text_english.lower().strip() not in RETRIEVAL_SKIP_PHRASES
+        if user_text.strip():
+            try:
+                chat_ctx.items[-1].content = [user_text_english]
+            except Exception:
+                pass
+
+        self.rag_session = await asyncio.to_thread(
+            update_session_from_turn,
+            self.intent_llm,
+            self.rag_session,
+            user_text_english, 
+        )
+        
+        print("[DEBUG] RAG SESSION:", self.rag_session.summary())
+
+        user_lower = user_text_english.lower()
+
+
+        try:
+            rag_context = await asyncio.to_thread(
+                hala_reply,
+                user_text_english,
+                self.rag_session,
+            )
+            print(rag_context)
+
+        except Exception as e:
+            print("RAG error:", e)
+            rag_context = "No relevant context found."
+        
+
+        state_prompt = f"""
+        CURRENT VERIFIED USER STATE:
+        {self.rag_session.summary()}
+
+        Use this verified state when answering.
+        Do not switch to another ICP service unless the user clearly corrects it.
+        If the retrieved context is not enough, ask one short clarification question.
+        """
+        injected_prompt = get_rag_template().format(
+            rag_context=rag_context)
+
+        insert_index = len(chat_ctx.items) - 1
+        chat_ctx.items.insert(
+            insert_index,
+            ChatMessage(role="system", content=[state_prompt]),
+            
         )
 
-        rag_context = ""
-        if should_retrieve:
-            try:
-                rag_context = await asyncio.to_thread(
-                    hala_reply,
-                    user_text_english,
-                )
-                print("[DEBUG] RAG context retrieved:", rag_context[:200] if rag_context else "None")
-            except Exception as e:
-                print("[DEBUG] RAG error:", e)
-                rag_context = ""
+        chat_ctx.items.insert(
+            insert_index + 1,
+            ChatMessage(
+                role="system",
+                content=[injected_prompt],
+            ),
+        )
 
-        # ── 4. Build the enriched user message ──────────────────────────────
-        # FIX: We enrich the USER message instead of inserting a second system
-        # message. LLaMA 3 Instruct expects exactly one system block at the
-        # start; a second system block mid-conversation causes the model to
-        # echo/leak prompt content and abandon its fine-tuned behaviour.
-        if rag_context:
-            enriched_content = RAG_INJECTION_TEMPLATE.format(
-                rag_context=rag_context,
-                user_text=user_text_english,
-            )
-        else:
-            # No RAG — just pass the (possibly translated) user text as-is
-            enriched_content = user_text_english
-
-        # Replace the last user message content with the enriched version
-        try:
-            chat_ctx.items[-1].content = [enriched_content]
-        except Exception as e:
-            print("[DEBUG] Could not update user message content:", e)
-
-        # ── 5. Stream response from the LLM ──────────────────────────────────
         async for chunk in Agent.default.llm_node(self, chat_ctx, tools, model_settings):
             yield chunk
 
@@ -189,7 +167,9 @@ async def entrypoint(ctx: JobContext):
 
     selected_lang = metadata.get("lang", "en")
     region = metadata.get("region", "usa")
+    mode = metadata.get("mode", "reception")
 
+    print("[DEBUG] Selected Mode:", mode)
     print("[DEBUG] Selected frontend language:", selected_lang)
     print("[DEBUG] Selected avatar region:", region)
 
@@ -198,16 +178,26 @@ async def entrypoint(ctx: JobContext):
     device = ctx.proc.userdata["seamless_device"]
     stt_model = SeamlessSTT(processor, model, device, selected_lang=selected_lang)
 
-    assistant = Assistant(stt_model, selected_lang=selected_lang)
+    vad_model = silero.VAD.load(
+        min_speech_duration=0.2,
+        min_silence_duration=0.8,
+    )
+
+    stt_model = StreamAdapter(
+        stt=base_stt_model,
+        vad=vad_model,
+    )
+
+    assistant = Assistant(base_stt_model, selected_lang = selected_lang, mode = mode)
 
     session = AgentSession(
 
         stt=stt_model,
 
-        llm=openai.LLM(
-            model=os.getenv("LLM_MODEL", "icp-assistant-qwen@q6_k"),
-            base_url=os.getenv("LLM_BASE_URL", "http://llama-server:8000/v1"),
-            api_key="local",
+        llm = openai.LLM(
+            model="icp-assistant-qwen-2",
+            base_url="http://127.0.0.1:1234/v1",
+            api_key="lm-studio",
             temperature=0.1,
         ),
 
@@ -216,16 +206,13 @@ async def entrypoint(ctx: JobContext):
             sample_rate=24000,
         ),
 
-        vad=silero.VAD.load(
-            min_speech_duration=0.2,
-            min_silence_duration=0.8,
-        ),
+        vad=vad_model,
 
         turn_handling=TurnHandlingOptions(
             min_endpointing_delay=0.8,
         ),
 
-        use_tts_aligned_transcript=True,
+        use_tts_aligned_transcript=False,
     )
 
     avatar = lemonslice.AvatarSession(
@@ -254,6 +241,7 @@ if __name__ == "__main__":
         WorkerOptions(
             entrypoint_fnc=entrypoint,
             prewarm_fnc=prewarm,
-            initialize_process_timeout=120
+            initialize_process_timeout=120,
+            num_idle_processes=2,
         )
     )

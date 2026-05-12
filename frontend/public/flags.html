@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hala Mode</title>
+  <title>Hala ICP Assistant</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&family=Playfair+Display:wght@400;600&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Bengali:wght@400;600&family=Noto+Sans+Malayalam:wght@400;600&family=Noto+Sans+Tamil:wght@400;600&family=Noto+Sans+SC:wght@400;600&display=swap" rel="stylesheet">
 
@@ -13,30 +13,26 @@
 <body>
   <main class="app">
 
-
     <div class="header">
-      <img src="assets/icp-logo.png" class="logo-left">
-      <img src="assets/ajman-logo.png" class="logo-center">
-      <img src="assets/uae-emblem.png" class="logo-right">
-    </div>
+  <img src="assets/icp-logo.png" class="logo-left">
 
-    <section class="mode-screen">
-      <h1 id="mode">Select Mode</h1>
-       <div class="mode-actions">
-        <button onclick="chooseMode('reception')" class="mode-btn">
-          Reception
-        </button>
-        <button onclick="chooseMode('counter')" class="mode-btn">
-          Counter
-        </button>
-       </div>
+  <img src="assets/ajman-logo.png" class="logo-center">
+
+  <img src="assets/uae-emblem.png" class="logo-right">
+</div>
+
+    <section class="hello">
+      <h1 id="helloText">Hello</h1>
     </section>
+
+    <section id="flagsGrid" class="flags-grid"></section>
+
   </main>
 
   <div class="bottom-strip">
     <img src="assets/strip.png" alt="Gold strip">
   </div>
 
-  <script src="script.js"></script>
+  <script src="flags.js"></script>
 </body>
 </html>

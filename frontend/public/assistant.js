@@ -1,7 +1,7 @@
 let room;
 
 function goBack() {
-  window.location.href = "index.html";
+  window.location.href = "flags.html";
 }
 
 function getSelectedLanguage() {
@@ -182,7 +182,7 @@ async function endSession() {
     room = null;
   }
 
-  window.location.href = "index.html";
+  window.location.href = "flags.html";
 }
 
 document.addEventListener("DOMContentLoaded", () => {

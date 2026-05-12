@@ -1,41 +1,50 @@
 from dotenv import load_dotenv
-import os
-
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings
+
+from context_aware_retriever import ContextAwareRetriever
+from session_state import SessionState
 
 load_dotenv()
 
 CHROMA_DIR = "chroma_icp_db"
 
-embeddings = HuggingFaceEmbeddings(
-    model_name="nomic-ai/nomic-embed-text-v1.5",
-    model_kwargs={"trust_remote_code": True},
+embeddings = OpenAIEmbeddings(
+    model="text-embedding-nomic-embed-text-v1.5",
+    base_url="http://localhost:1234/v1",
+    api_key="lm-studio",
+    check_embedding_ctx_length=False,
 )
 
 vector_store = Chroma(
     persist_directory=CHROMA_DIR,
     embedding_function=embeddings,
+    collection_name="icp_services",
 )
 
-print("\nRAG assistant is ready.\n")
+retriever = ContextAwareRetriever(
+    vectorstore=vector_store,
+    k=3,
+    use_metadata_filter=True,
+)
+
+print("\nRAG assistant is ready with stateful metadata filtering.\n")
 
 
-def hala_reply(qn, category=None, subcategory=None):
-    query_parts = []
+def hala_reply(qn, session: SessionState = None):
+    if session is None:
+        session = SessionState()
 
-    if category:
-        query_parts.append(category)
+    docs = retriever.retrieve(
+        raw_query=qn,
+        session=session,
+    )
 
-    if subcategory:
-        query_parts.append(subcategory)
+    print("[RAG RESULTS]")
+    for doc in docs:
+        print(doc.metadata)
 
-    query_parts.append(qn)
+    if not docs:
+        return "No relevant context found."
 
-    search_query = " ".join(query_parts)
-
-    docs = vector_store.similarity_search(search_query, k=2)
-
-    context = "\n\n".join(doc.page_content for doc in docs)
-
-    return context
+    return "\n\n".join(doc.page_content for doc in docs)
