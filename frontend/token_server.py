@@ -1,29 +1,29 @@
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from livekit.api import AccessToken, VideoGrants
 from datetime import timedelta
-import json, os, uuid
-app = Flask(__name__, static_folder="public", static_url_path="")
+import json, os
+app = Flask(__name__)
 CORS(app)
 
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
                                
-@app.get("/")
-def index():
-    return send_from_directory(app.static_folder, "index.html")
+# ROOM_NAME = "test-room"
 
 @app.get("/token")
 def get_token():
+    room_name = request.args.get("room", "hala-default")
     lang = request.args.get("lang", "en")
     region = request.args.get("region", "usa")
+    mode = request.args.get("mode", "reception")
 
-    room_name = request.args.get("room") or f"hala-{uuid.uuid4().hex[:8]}"
-    identity = f"user-{uuid.uuid4().hex[:8]}"
+    identity = f"user-{lang}-{region}-{mode}"
 
     metadata = {
         "lang": lang,
-        "region": region
+        "region": region,
+        "mode": mode
     }
 
     token = (
@@ -45,11 +45,12 @@ def get_token():
 
     return jsonify({
         "token": token,
-        "wsUrl": os.getenv("LIVEKIT_URL"),
+        "wsUrl": "wss://voiceassistant-yuxi3myt.livekit.cloud",
         "room": room_name,
         "lang": lang,
-        "region": region
+        "region": region,
+        "mode": mode
     })
 
 if __name__ == "__main__":
-    app.run(host = "0.0.0.0", port = int(os.getenv("PORT", 3000)), debug = False)
+    app.run(port=5000, debug=True)

@@ -15,6 +15,7 @@ from langchain_openai import ChatOpenAI
 from session_state import SessionState
 from intent_extractor import update_session_from_turn
 import json
+import os
 load_dotenv()
 
 # ==============================
@@ -176,7 +177,7 @@ async def entrypoint(ctx: JobContext):
     processor = ctx.proc.userdata["seamless_processor"]
     model = ctx.proc.userdata["seamless_model"]
     device = ctx.proc.userdata["seamless_device"]
-    stt_model = SeamlessSTT(processor, model, device, selected_lang=selected_lang)
+    base_stt_model = SeamlessSTT(processor, model, device, selected_lang=selected_lang)
 
     vad_model = silero.VAD.load(
         min_speech_duration=0.2,

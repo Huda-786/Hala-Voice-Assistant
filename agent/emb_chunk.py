@@ -7,7 +7,7 @@ import shutil
 
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 load_dotenv()
 
@@ -179,11 +179,9 @@ if Path(CHROMA_DIR).exists():
     print(f"\nDeleted old Chroma directory: {CHROMA_DIR}")
 
 
-embeddings = OpenAIEmbeddings(
-    model="text-embedding-nomic-embed-text-v1.5",
-    base_url="http://localhost:1234/v1",
-    api_key="lm-studio",
-    check_embedding_ctx_length=False,
+embeddings = HuggingFaceEmbeddings(
+    model_name="nomic-ai/nomic-embed-text-v1.5",
+    model_kwargs={"trust_remote_code": True},
 )
 
 vector_store = Chroma.from_documents(
