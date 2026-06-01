@@ -51,10 +51,10 @@ def get_rag_template():
 def get_script():
  
         fingerprint_script = (
-            "Welcome to the Customer Happiness Center – Ajman"
+            "Welcome to the Customer Happiness Center – Ajman."
             "An employee will now complete the fingerprinting and electronic signature process, which is quick, simple and completely painless process and will only take a few minutes."
             "Please place your hand gently on the fingerprint scanner when requested. If your fingerprint does not register the first time, you may need to re-scan."
-            "Once completed, your application will proceed as normal, and you will receive your ID card usually within 5 days by courier to your registered address., depending on the service you selected."
+            "Once completed, your application will proceed as normal, and you will receive your ID card usually within 5 days by courier to your registered address, depending on the service you selected."
             "Thank you, and we wish you a pleasant and enjoyable experience."
         )
         return fingerprint_script
