@@ -11,7 +11,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 
 load_dotenv()
 
-TXT_PATH = Path("ICP_doc_RAG_optimized.txt")
+TXT_PATH = Path("Data/ICP_doc_RAG_optimized.txt")
 CHROMA_DIR = "chroma_icp_db"
 
 def normalize_service(service_raw: str) -> str:

@@ -1,19 +1,23 @@
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
-
-from context_aware_retriever import ContextAwareRetriever
+from langchain_huggingface import HuggingFaceEmbeddings
+from context_aware_retrieval import ContextAwareRetriever
 from session_state import SessionState
 
 load_dotenv()
 
 CHROMA_DIR = "chroma_icp_db"
 
-embeddings = OpenAIEmbeddings(
-    model="text-embedding-nomic-embed-text-v1.5",
-    base_url="http://localhost:1234/v1",
-    api_key="lm-studio",
-    check_embedding_ctx_length=False,
+# embeddings = OpenAIEmbeddings(
+#     model="text-embedding-nomic-embed-text-v1.5",
+#     base_url="http://localhost:1234/v1",
+#     api_key="lm-studio",
+#     check_embedding_ctx_length=False,
+# )
+
+embeddings = HuggingFaceEmbeddings(
+    model_name="nomic-ai/nomic-embed-text-v1.5",
+    model_kwargs={"trust_remote_code": True},
 )
 
 vector_store = Chroma(
