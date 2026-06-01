@@ -10,7 +10,6 @@ from seamless_stt import SeamlessSTT
 from hala import hala_reply
 from prompts_scripts import get_rag_template, get_script, get_system_prompt
 import asyncio
-from extraction import extract_user_state
 from langchain_openai import ChatOpenAI
 from session_state import SessionState
 from intent_extractor import update_session_from_turn
@@ -61,7 +60,7 @@ class Assistant(Agent):
         self.rag_session = SessionState()
         self.intent_llm = ChatOpenAI(
             model="icp-assistant-qwen-2",
-            base_url="http://127.0.0.1:1234/v1",
+            base_url="http://llama-server:8000/v1",      #"http://127.0.0.1:1234/v1"
             api_key="lm-studio",
             temperature=0,
         )
@@ -81,7 +80,7 @@ class Assistant(Agent):
         )
 
     async def on_user_turn_completed(self, turn_ctx, new_message):
-        self.current_lang = self.whisper_stt.last_language or "en"
+        self.current_lang = self.seam_stt.last_language or "en"
         print("[DEBUG] Current user language:", self.current_lang)
 
     async def llm_node(self, chat_ctx, tools, model_settings):
@@ -126,11 +125,18 @@ class Assistant(Agent):
 
         state_prompt = f"""
         CURRENT VERIFIED USER STATE:
-        {self.rag_session.summary()}
+        service_type={self.rag_session.service_type}
+        nationality={self.rag_session.nationality}
+        category={self.rag_session.category}
+        topic={self.rag_session.topic}
+        age={self.rag_session.age}
+        urgency={self.rag_session.urgency}
 
-        Use this verified state when answering.
-        Do not switch to another ICP service unless the user clearly corrects it.
-        If the retrieved context is not enough, ask one short clarification question.
+        MANDATORY DECISION:
+        - If nationality is None and the user asks about documents, fees, steps, validity, or eligibility, ask only for nationality.
+        - If the topic is fingerprints, and age is None, please get the age from the user. 
+        - Do not answer the service question yet.
+        - Do not assume resident, UAE national, or GCC national.
         """
         injected_prompt = get_rag_template().format(
             rag_context=rag_context)
@@ -197,7 +203,7 @@ async def entrypoint(ctx: JobContext):
 
         llm = openai.LLM(
             model="icp-assistant-qwen-2",
-            base_url="http://127.0.0.1:1234/v1",
+            base_url="http://llama-server:8000/v1",      #"http://127.0.0.1:1234/v1"
             api_key="lm-studio",
             temperature=0.1,
         ),

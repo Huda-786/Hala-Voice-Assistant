@@ -1,10 +1,14 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from livekit.api import AccessToken, VideoGrants
 from datetime import timedelta
 import json, os
-app = Flask(__name__)
+
+app = Flask(__name__, static_folder="public", static_url_path="")
 CORS(app)
+@app.get("/")
+def home():
+    return send_from_directory("public", "index.html")
 
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
@@ -53,4 +57,4 @@ def get_token():
     })
 
 if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+    app.run(host="0.0.0.0", port=3000, debug=False)
