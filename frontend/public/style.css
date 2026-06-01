@@ -276,6 +276,74 @@ body {
   box-shadow: 0 0.3rem 0.8rem rgba(0,0,0,0.15);
 }
 
+.back-button {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  width: 54px;
+  height: 54px;
+  border: none;
+  border-radius: 50%;
+  background: white;
+  color: #b9975b;
+  font-size: 2.4rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background: #b9975b;
+  color: white;
+  transform: translateX(-3px);
+}
+
+.mode-screen {
+  min-height: 75vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  text-align: center;
+}
+
+.mode-screen h1 {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  color: #b9975b;
+  margin: 0;
+}
+
+.mode-actions {
+  display: flex;
+  gap: 30px;
+}
+
+.mode-btn {
+  width: 220px;
+  height: 130px;
+  border: none;
+  border-radius: 28px;
+  background: white;
+  color: #333;
+  font-size: 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 0.7rem 1.8rem rgba(0,0,0,0.15);
+}
+
+.mode-btn:hover {
+  transform: translateY(-4px);
+  background: #b9975b;
+  color: white;
+}
+
 @media (max-width: 480px) {
   .assistant-screen {
     min-height: 62vh;
