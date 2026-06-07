@@ -173,10 +173,18 @@ for i, chunk in enumerate(chunks):
         f"topic={m['topic']}"
     )
 
+    
+chroma_path = Path(CHROMA_DIR)
 
-if Path(CHROMA_DIR).exists():
-    shutil.rmtree(CHROMA_DIR)
-    print(f"\nDeleted old Chroma directory: {CHROMA_DIR}")
+if chroma_path.exists():
+    for item in chroma_path.iterdir():
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
+    print(f"\nCleared old Chroma directory contents: {CHROMA_DIR}")
+else:
+    chroma_path.mkdir(parents=True, exist_ok=True)
 
 
 embeddings = HuggingFaceEmbeddings(
@@ -193,29 +201,3 @@ vector_store = Chroma.from_documents(
 
 print(f"\nIngested {len(chunks)} chunks into ChromaDB")
 print(f"Saved at: {CHROMA_DIR}")
-
-
-
-query = "Lost ID replacement fee for GCC national student"
-
-results = vector_store.similarity_search(
-    query,
-    k=3,
-    filter={
-        "$and": [
-            {"service_type": {"$eq": "lost_replacement"}},
-            {
-                "$or": [
-                    {"nationality": {"$eq": "gcc_national"}},
-                    {"nationality": {"$eq": "all"}},
-                ]
-            },
-        ]
-    },
-)
-
-print("\nSanity check results:")
-for i, doc in enumerate(results, start=1):
-    print(f"\nResult {i}")
-    print("Metadata:", doc.metadata)
-    print("Preview:", doc.page_content[:250])

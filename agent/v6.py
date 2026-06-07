@@ -59,7 +59,7 @@ class Assistant(Agent):
         self.mode = mode
         self.rag_session = SessionState()
         self.intent_llm = ChatOpenAI(
-            model="icp-assistant-qwen-2",
+            model="icp_assistant_model_llama_5_q4.gguf",
             base_url="http://llama-server:8000/v1",      #"http://127.0.0.1:1234/v1"
             api_key="lm-studio",
             temperature=0,
@@ -202,7 +202,7 @@ async def entrypoint(ctx: JobContext):
         stt=stt_model,
 
         llm = openai.LLM(
-            model="icp-assistant-qwen-2",
+            model="icp_assistant_model_llama_5_q4.gguf",
             base_url="http://llama-server:8000/v1",      #"http://127.0.0.1:1234/v1"
             api_key="lm-studio",
             temperature=0.1,
@@ -248,7 +248,9 @@ if __name__ == "__main__":
         WorkerOptions(
             entrypoint_fnc=entrypoint,
             prewarm_fnc=prewarm,
-            initialize_process_timeout=120,
-            num_idle_processes=2,
+            initialize_process_timeout=180,
+            num_idle_processes=1,
+            multiprocessing_context="spawn",
+            job_memory_warn_mb=1600,
         )
     )

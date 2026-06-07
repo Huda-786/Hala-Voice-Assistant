@@ -98,7 +98,7 @@ class SeamlessSTT(stt.STT):
         
         src_lang = SEAMLESS_LANG_MAP.get(self.selected_lang, "eng")
         inputs = self.processor(
-            audio=audio,
+            audios=audio,
             sampling_rate=16000,
             src_lang = src_lang,
             return_tensors="pt",
